@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+.card {
+  @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+}
+
+.card-body {
+  @apply p-5;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-lg px-3.5 py-2 text-sm font-medium transition-colors;
+}
+
+.btn-primary {
+  @apply btn bg-brand-600 text-white hover:bg-brand-700;
+}
+
+.btn-ghost {
+  @apply btn border border-slate-200 bg-white text-slate-700 hover:bg-slate-50;
+}
+
+.btn-danger {
+  @apply btn border border-rose-200 bg-white text-rose-700 hover:bg-rose-50;
+}
+
+.input, .select, .textarea {
+  @apply w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
+}
+
+.label {
+  @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500;
+}
+
+.table {
+  @apply w-full text-sm;
+}
+
+.table th {
+  @apply px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500;
+}
+
+.table td {
+  @apply border-t border-slate-100 px-3 py-2 align-top;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+}
