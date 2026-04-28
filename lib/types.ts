@@ -58,6 +58,51 @@ export interface Employee {
   created_at: string;
 }
 
+export interface Skill {
+  id: number;
+  name: string;
+  created_at: string;
+}
+
+export interface EmployeeWithSkills extends Employee {
+  skills: Skill[];
+}
+
+export interface Assignment {
+  id: number;
+  project_id: number;
+  employee_id: number;
+  start_date: string;
+  end_date: string;
+  role: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface AssignmentDetail extends Assignment {
+  employee_name: string;
+  project_name: string;
+}
+
+export type TaskStatus = "todo" | "in_progress" | "done" | "blocked";
+
+export interface ProjectTask {
+  id: number;
+  project_id: number;
+  description: string;
+  required_skill_id: number | null;
+  assigned_employee_id: number | null;
+  status: TaskStatus;
+  due_date: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ProjectTaskDetail extends ProjectTask {
+  required_skill_name: string | null;
+  assigned_employee_name: string | null;
+}
+
 export interface Dataset {
   id: number;
   name: string;

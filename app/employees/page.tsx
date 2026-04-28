@@ -1,13 +1,20 @@
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
-import { employeeRepo } from "@/lib/repo";
+import { assignmentRepo, employeeRepo, skillRepo } from "@/lib/repo";
 import { currency, dateShort } from "@/lib/format";
-import { createEmployee, deleteEmployee, toggleEmployee } from "./actions";
+import {
+  addSkillTag,
+  createEmployee,
+  deleteEmployee,
+  removeSkillTag,
+  toggleEmployee,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default function EmployeesPage() {
-  const employees = employeeRepo.list();
+  const employees = employeeRepo.listWithSkills();
+  const allSkills = skillRepo.list();
   const active = employees.filter((e) => e.active === 1);
   const totalSalary = active.reduce((s, e) => s + e.salary, 0);
 
@@ -84,23 +91,80 @@ export default function EmployeesPage() {
                     <tr>
                       <th>Name</th>
                       <th>Role</th>
-                      <th>Type</th>
-                      <th>Started</th>
+                      <th>Skills</th>
+                      <th>Bookings</th>
                       <th className="text-right">Salary</th>
                       <th>Status</th>
                       <th />
                     </tr>
                   </thead>
                   <tbody>
-                    {employees.map((e) => (
+                    {employees.map((e) => {
+                      const bookings = assignmentRepo.listForEmployee(e.id);
+                      return (
                       <tr key={e.id}>
                         <td>
                           <div className="font-medium">{e.name}</div>
                           <div className="text-xs text-slate-500">{e.email ?? "—"}</div>
+                          <div className="text-[11px] text-slate-400">
+                            {e.employment_type.replace("_", "-")} · started {dateShort(e.start_date)}
+                          </div>
                         </td>
                         <td className="text-slate-600">{e.role ?? "—"}</td>
-                        <td className="text-slate-600">{e.employment_type.replace("_", "-")}</td>
-                        <td className="whitespace-nowrap text-slate-500">{dateShort(e.start_date)}</td>
+                        <td>
+                          <div className="flex flex-wrap gap-1">
+                            {e.skills.map((s) => (
+                              <form key={s.id} action={removeSkillTag} className="inline-flex">
+                                <input type="hidden" name="employee_id" value={e.id} />
+                                <input type="hidden" name="skill_id" value={s.id} />
+                                <button
+                                  type="submit"
+                                  className="badge bg-indigo-50 text-indigo-700 hover:bg-rose-50 hover:text-rose-700"
+                                  title="Remove skill"
+                                >
+                                  {s.name} ×
+                                </button>
+                              </form>
+                            ))}
+                          </div>
+                          <form action={addSkillTag} className="mt-1 flex gap-1">
+                            <input type="hidden" name="employee_id" value={e.id} />
+                            <input
+                              name="skill_name"
+                              list={`skills-${e.id}`}
+                              className="input !py-1 text-xs"
+                              placeholder="+ skill"
+                            />
+                            <datalist id={`skills-${e.id}`}>
+                              {allSkills
+                                .filter((s) => !e.skills.find((x) => x.id === s.id))
+                                .map((s) => (
+                                  <option key={s.id} value={s.name} />
+                                ))}
+                            </datalist>
+                            <button className="text-xs text-brand-600 hover:underline">Add</button>
+                          </form>
+                        </td>
+                        <td className="text-xs text-slate-600">
+                          {bookings.length === 0 ? (
+                            <span className="text-slate-400">—</span>
+                          ) : (
+                            <ul className="space-y-0.5">
+                              {bookings.slice(0, 3).map((b) => (
+                                <li key={b.id}>
+                                  <span className="font-medium">{b.project_name}</span>
+                                  <span className="text-slate-500">
+                                    {" "}
+                                    · {dateShort(b.start_date)}–{dateShort(b.end_date)}
+                                  </span>
+                                </li>
+                              ))}
+                              {bookings.length > 3 ? (
+                                <li className="text-slate-400">+{bookings.length - 3} more</li>
+                              ) : null}
+                            </ul>
+                          )}
+                        </td>
                         <td className="text-right">{currency(e.salary)}</td>
                         <td>
                           <span className={`badge ${e.active === 1 ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
@@ -122,7 +186,8 @@ export default function EmployeesPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

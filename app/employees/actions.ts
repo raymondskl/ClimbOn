@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { employeeRepo } from "@/lib/repo";
+import { employeeRepo, skillRepo } from "@/lib/repo";
 import type { EmploymentType } from "@/lib/types";
 
 export async function createEmployee(formData: FormData) {
@@ -36,4 +36,21 @@ export async function deleteEmployee(formData: FormData) {
   employeeRepo.delete(id);
   revalidatePath("/employees");
   revalidatePath("/");
+}
+
+export async function addSkillTag(formData: FormData) {
+  const employee_id = Number(formData.get("employee_id"));
+  const skill_name = String(formData.get("skill_name") ?? "").trim();
+  if (!employee_id || !skill_name) return;
+  const skill = skillRepo.findOrCreate(skill_name);
+  employeeRepo.addSkill(employee_id, skill.id);
+  revalidatePath("/employees");
+}
+
+export async function removeSkillTag(formData: FormData) {
+  const employee_id = Number(formData.get("employee_id"));
+  const skill_id = Number(formData.get("skill_id"));
+  if (!employee_id || !skill_id) return;
+  employeeRepo.removeSkill(employee_id, skill_id);
+  revalidatePath("/employees");
 }

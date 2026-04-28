@@ -94,10 +94,56 @@ function initSchema(db: Database.Database) {
       FOREIGN KEY (dataset_id) REFERENCES datasets(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS skills (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS employee_skills (
+      employee_id INTEGER NOT NULL,
+      skill_id INTEGER NOT NULL,
+      PRIMARY KEY (employee_id, skill_id),
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+      FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS assignments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      employee_id INTEGER NOT NULL,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      role TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+      FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+      CHECK (date(start_date) <= date(end_date))
+    );
+
+    CREATE TABLE IF NOT EXISTS project_tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      description TEXT NOT NULL,
+      required_skill_id INTEGER,
+      assigned_employee_id INTEGER,
+      status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo','in_progress','done','blocked')),
+      due_date TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+      FOREIGN KEY (required_skill_id) REFERENCES skills(id) ON DELETE SET NULL,
+      FOREIGN KEY (assigned_employee_id) REFERENCES employees(id) ON DELETE SET NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(occurred_on);
     CREATE INDEX IF NOT EXISTS idx_tx_project ON transactions(project_id);
     CREATE INDEX IF NOT EXISTS idx_leads_stage ON leads(stage);
     CREATE INDEX IF NOT EXISTS idx_dataset_rows ON dataset_rows(dataset_id, point_date);
+    CREATE INDEX IF NOT EXISTS idx_assign_emp ON assignments(employee_id, start_date, end_date);
+    CREATE INDEX IF NOT EXISTS idx_assign_proj ON assignments(project_id);
+    CREATE INDEX IF NOT EXISTS idx_tasks_proj ON project_tasks(project_id);
   `);
 }
 

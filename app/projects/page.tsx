@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { projectRepo } from "@/lib/repo";
@@ -106,7 +107,11 @@ export default function ProjectsPage() {
                       const fin = projectRepo.financialsFor(p.id);
                       return (
                         <tr key={p.id}>
-                          <td className="font-medium">{p.name}</td>
+                          <td className="font-medium">
+                            <Link href={`/projects/${p.id}`} className="text-brand-600 hover:underline">
+                              {p.name}
+                            </Link>
+                          </td>
                           <td className="text-slate-500">{p.client ?? "—"}</td>
                           <td>
                             <form action={updateProjectStatus} className="flex items-center gap-2">
