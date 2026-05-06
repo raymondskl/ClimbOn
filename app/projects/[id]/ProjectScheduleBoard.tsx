@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import {
   createAssignmentFromDrag,
   deleteAssignmentAction,
@@ -55,13 +63,16 @@ type DragState =
     }
   | null;
 
+const SCROLL_CHUNK = 28;
+const SCROLL_THRESHOLD = 240;
+
 export function ProjectScheduleBoard({
   projectId,
   projectName,
   employees,
   assignments: initialAssignments,
-  windowStart,
-  days,
+  windowStart: initialWindowStart,
+  days: initialDays,
 }: {
   projectId: number;
   projectName: string;
@@ -71,18 +82,60 @@ export function ProjectScheduleBoard({
   days: number;
 }) {
   const [assignments, setAssignments] = useState(initialAssignments);
+  const [windowStart, setWindowStart] = useState(initialWindowStart);
+  const [days, setDays] = useState(initialDays);
   const [drag, setDrag] = useState<DragState>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const originalRef = useRef<BoardAssignment | null>(null);
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pendingScrollAdjust = useRef(0);
+  const expandingRef = useRef(false);
+  const initialScrollDone = useRef(false);
+  const dragRef = useRef<DragState>(null);
 
   useEffect(() => {
     setAssignments(initialAssignments);
   }, [initialAssignments]);
 
+  useEffect(() => {
+    dragRef.current = drag;
+  }, [drag]);
+
   const totalWidth = days * DAY_W;
   const todayOffset = daysBetween(windowStart, new Date().toISOString().slice(0, 10));
+
+  useLayoutEffect(() => {
+    if (!scrollRef.current) return;
+    if (!initialScrollDone.current) {
+      const todayPx = Math.max(0, todayOffset * DAY_W - 120);
+      scrollRef.current.scrollLeft = todayPx;
+      initialScrollDone.current = true;
+    }
+  }, [todayOffset]);
+
+  useLayoutEffect(() => {
+    if (pendingScrollAdjust.current && scrollRef.current) {
+      scrollRef.current.scrollLeft += pendingScrollAdjust.current;
+      pendingScrollAdjust.current = 0;
+    }
+    expandingRef.current = false;
+  }, [windowStart, days]);
+
+  const onBoardScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || expandingRef.current || dragRef.current) return;
+    if (el.scrollLeft < SCROLL_THRESHOLD) {
+      expandingRef.current = true;
+      pendingScrollAdjust.current = SCROLL_CHUNK * DAY_W;
+      setWindowStart((prev) => addDays(prev, -SCROLL_CHUNK));
+      setDays((prev) => prev + SCROLL_CHUNK);
+    } else if (el.scrollLeft + el.clientWidth > el.scrollWidth - SCROLL_THRESHOLD) {
+      expandingRef.current = true;
+      setDays((prev) => prev + SCROLL_CHUNK);
+    }
+  }, []);
 
   const datesHeader = useMemo(() => {
     const out: { date: string; isMonday: boolean; isToday: boolean; offset: number }[] = [];
@@ -232,10 +285,13 @@ export function ProjectScheduleBoard({
         </div>
       ) : null}
       <div
+        ref={scrollRef}
         className="relative overflow-auto"
+        style={{ maxHeight: "60vh" }}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onScroll={onBoardScroll}
       >
         <div style={{ width: LEFT_COL_W + totalWidth, minWidth: "100%" }}>
           <div

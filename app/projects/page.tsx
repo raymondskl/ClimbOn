@@ -3,8 +3,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { projectRepo } from "@/lib/repo";
 import { currency, dateShort } from "@/lib/format";
-import { createProject, deleteProject, updateProjectStatus } from "./actions";
+import { createProject, deleteProject } from "./actions";
 import type { ProjectStatus } from "@/lib/types";
+import { ProjectStatusSelect } from "./ProjectStatusSelect";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,9 @@ const STATUSES: { value: ProjectStatus; label: string; tone: string }[] = [
   { value: "cancelled", label: "Cancelled", tone: "bg-rose-50 text-rose-700" },
 ];
 
-function toneFor(status: ProjectStatus) {
-  return STATUSES.find((s) => s.value === status)?.tone ?? "bg-slate-100 text-slate-700";
-}
-
-export default function ProjectsPage() {
-  const projects = projectRepo.list();
+export default async function ProjectsPage() {
+  const projects = await projectRepo.list();
+  const fins = await Promise.all(projects.map((p) => projectRepo.financialsFor(p.id)));
   const active = projects.filter((p) => p.status === "active");
   const totalBudget = projects.reduce((s, p) => s + p.budget, 0);
   const activeBudget = active.reduce((s, p) => s + p.budget, 0);
@@ -103,8 +101,8 @@ export default function ProjectsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {projects.map((p) => {
-                      const fin = projectRepo.financialsFor(p.id);
+                    {projects.map((p, idx) => {
+                      const fin = fins[idx];
                       return (
                         <tr key={p.id}>
                           <td className="font-medium">
@@ -114,15 +112,7 @@ export default function ProjectsPage() {
                           </td>
                           <td className="text-slate-500">{p.client ?? "—"}</td>
                           <td>
-                            <form action={updateProjectStatus} className="flex items-center gap-2">
-                              <input type="hidden" name="id" value={p.id} />
-                              <select name="status" defaultValue={p.status} className={`select !py-1 text-xs ${toneFor(p.status)}`}>
-                                {STATUSES.map((s) => (
-                                  <option key={s.value} value={s.value}>{s.label}</option>
-                                ))}
-                              </select>
-                              <button className="text-xs text-brand-600 hover:underline">Save</button>
-                            </form>
+                            <ProjectStatusSelect projectId={p.id} status={p.status} />
                           </td>
                           <td className="whitespace-nowrap text-slate-500">{dateShort(p.due_date)}</td>
                           <td className="text-right">{currency(p.budget)}</td>

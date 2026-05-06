@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -77,12 +78,15 @@ type DragState =
     }
   | null;
 
+const SCROLL_CHUNK = 28;
+const SCROLL_THRESHOLD = 240;
+
 export function ScheduleBoard({
   projects,
   employees,
   assignments: initialAssignments,
-  windowStart,
-  days,
+  windowStart: initialWindowStart,
+  days: initialDays,
 }: {
   projects: BoardProject[];
   employees: BoardEmployee[];
@@ -91,11 +95,16 @@ export function ScheduleBoard({
   days: number;
 }) {
   const [assignments, setAssignments] = useState(initialAssignments);
+  const [windowStart, setWindowStart] = useState(initialWindowStart);
+  const [days, setDays] = useState(initialDays);
   const [drag, setDrag] = useState<DragState>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const boardRef = useRef<HTMLDivElement>(null);
   const originalRef = useRef<BoardAssignment | null>(null);
+  const pendingScrollAdjust = useRef(0);
+  const expandingRef = useRef(false);
+  const initialScrollDone = useRef(false);
 
   useEffect(() => {
     setAssignments(initialAssignments);
@@ -103,6 +112,42 @@ export function ScheduleBoard({
 
   const totalWidth = days * DAY_W;
   const todayOffset = daysBetween(windowStart, new Date().toISOString().slice(0, 10));
+
+  useLayoutEffect(() => {
+    if (!boardRef.current) return;
+    if (!initialScrollDone.current) {
+      const todayPx = Math.max(0, todayOffset * DAY_W - 120);
+      boardRef.current.scrollLeft = todayPx;
+      initialScrollDone.current = true;
+    }
+  }, [todayOffset]);
+
+  useLayoutEffect(() => {
+    if (pendingScrollAdjust.current && boardRef.current) {
+      boardRef.current.scrollLeft += pendingScrollAdjust.current;
+      pendingScrollAdjust.current = 0;
+    }
+    expandingRef.current = false;
+  }, [windowStart, days]);
+
+  const dragRef = useRef<DragState>(null);
+  useEffect(() => {
+    dragRef.current = drag;
+  }, [drag]);
+
+  const onBoardScroll = useCallback(() => {
+    const el = boardRef.current;
+    if (!el || expandingRef.current || dragRef.current) return;
+    if (el.scrollLeft < SCROLL_THRESHOLD) {
+      expandingRef.current = true;
+      pendingScrollAdjust.current = SCROLL_CHUNK * DAY_W;
+      setWindowStart((prev) => addDays(prev, -SCROLL_CHUNK));
+      setDays((prev) => prev + SCROLL_CHUNK);
+    } else if (el.scrollLeft + el.clientWidth > el.scrollWidth - SCROLL_THRESHOLD) {
+      expandingRef.current = true;
+      setDays((prev) => prev + SCROLL_CHUNK);
+    }
+  }, []);
 
   const datesHeader = useMemo(() => {
     const out: { date: string; isMonday: boolean; isToday: boolean; offset: number }[] = [];
@@ -280,9 +325,11 @@ export function ScheduleBoard({
           <div
             ref={boardRef}
             className="relative overflow-auto"
+            style={{ maxHeight: "70vh" }}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
+            onScroll={onBoardScroll}
           >
             <div style={{ width: LEFT_COL_W + totalWidth, minWidth: "100%" }}>
               <div

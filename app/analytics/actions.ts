@@ -48,19 +48,19 @@ export async function createDatasetFromCsv(formData: FormData) {
 
   if (parsed.length === 0) return;
 
-  const result = datasetRepo.create({
+  const result = await datasetRepo.create({
     name,
     description,
     date_column: dateCol,
     value_column: valueCol,
   });
-  datasetRepo.insertRows(Number(result.lastInsertRowid), parsed);
+  await datasetRepo.insertRows(Number(result.lastInsertRowid ?? 0), parsed);
   revalidatePath("/analytics");
 }
 
 export async function deleteDataset(formData: FormData) {
   const id = Number(formData.get("id"));
   if (!id) return;
-  datasetRepo.delete(id);
+  await datasetRepo.delete(id);
   revalidatePath("/analytics");
 }

@@ -25,14 +25,14 @@ function summarize(series: { x: string; y: number }[]) {
   return { sum, avg, min, max, reg, growth: growthRate(values) };
 }
 
-export default function AnalyticsPage({ searchParams }: { searchParams: { ds?: string } }) {
-  const datasets = datasetRepo.list();
+export default async function AnalyticsPage({ searchParams }: { searchParams: { ds?: string } }) {
+  const datasets = await datasetRepo.list();
   const selectedId = searchParams.ds ? Number(searchParams.ds) : datasets[0]?.id;
-  const selected = selectedId ? datasetRepo.get(selectedId) : undefined;
-  const rows = selected ? datasetRepo.rows(selected.id) : [];
+  const selected = selectedId ? await datasetRepo.get(selectedId) : undefined;
+  const rows = selected ? await datasetRepo.rows(selected.id) : [];
   const series = rows.map((r) => ({ x: r.point_date, y: r.value }));
 
-  const cashflow = txRepo.monthlyTotals(24);
+  const cashflow = await txRepo.monthlyTotals(24);
   const netSeries = cashflow.map((m) => ({ x: m.month, y: m.net }));
   const revSeries = cashflow.map((m) => ({ x: m.month, y: m.income }));
   const revForecast = projectForward(revSeries, 6, nextMonthLabel);

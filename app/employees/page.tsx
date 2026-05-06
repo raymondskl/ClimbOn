@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { assignmentRepo, employeeRepo, skillRepo } from "@/lib/repo";
@@ -9,12 +10,18 @@ import {
   removeSkillTag,
   toggleEmployee,
 } from "./actions";
+import { EditEmployeeForm } from "./EditEmployee";
 
 export const dynamic = "force-dynamic";
 
-export default function EmployeesPage() {
-  const employees = employeeRepo.listWithSkills();
-  const allSkills = skillRepo.list();
+export default async function EmployeesPage() {
+  const [employees, allSkills] = await Promise.all([
+    employeeRepo.listWithSkills(),
+    skillRepo.list(),
+  ]);
+  const bookingsByEmployee = await Promise.all(
+    employees.map((e) => assignmentRepo.listForEmployee(e.id)),
+  );
   const active = employees.filter((e) => e.active === 1);
   const totalSalary = active.reduce((s, e) => s + e.salary, 0);
 
@@ -99,10 +106,11 @@ export default function EmployeesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {employees.map((e) => {
-                      const bookings = assignmentRepo.listForEmployee(e.id);
+                    {employees.map((e, idx) => {
+                      const bookings = bookingsByEmployee[idx];
                       return (
-                      <tr key={e.id}>
+                      <Fragment key={e.id}>
+                      <tr>
                         <td>
                           <div className="font-medium">{e.name}</div>
                           <div className="text-xs text-slate-500">{e.email ?? "—"}</div>
@@ -186,6 +194,12 @@ export default function EmployeesPage() {
                           </div>
                         </td>
                       </tr>
+                      <tr className="border-t-0">
+                        <td colSpan={7} className="!py-0">
+                          <EditEmployeeForm employee={e} />
+                        </td>
+                      </tr>
+                      </Fragment>
                       );
                     })}
                   </tbody>

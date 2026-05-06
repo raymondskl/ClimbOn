@@ -1,9 +1,16 @@
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { leadRepo } from "@/lib/repo";
-import { currency, dateShort } from "@/lib/format";
-import { createLead, deleteLead, updateLeadStage } from "./actions";
-import type { LeadStage } from "@/lib/types";
+import { currency, dateShort, dateTimeShort } from "@/lib/format";
+import {
+  addLeadNote,
+  createLead,
+  deleteLead,
+  deleteLeadNote,
+  updateLeadNote,
+  updateLeadStage,
+} from "./actions";
+import type { LeadNote, LeadStage } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +23,12 @@ const STAGES: { value: LeadStage; label: string; tone: string }[] = [
   { value: "lost", label: "Lost", tone: "bg-rose-50 text-rose-700" },
 ];
 
-export default function LeadsPage() {
-  const leads = leadRepo.list();
-  const pipeline = leadRepo.pipelineStats();
+export default async function LeadsPage() {
+  const [leads, pipeline, notesByLead] = await Promise.all([
+    leadRepo.list(),
+    leadRepo.pipelineStats(),
+    leadRepo.notesByLead(),
+  ]);
   const totalValue = leads.filter((l) => !["won", "lost"].includes(l.stage)).reduce((s, l) => s + l.estimated_value, 0);
   const wonValue = leads.filter((l) => l.stage === "won").reduce((s, l) => s + l.estimated_value, 0);
   const winRate = (() => {
@@ -141,32 +151,67 @@ export default function LeadsPage() {
                     </div>
                   </div>
                   <div className="divide-y divide-slate-100">
-                    {items.map((l) => (
-                      <div key={l.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
-                        <div className="min-w-0">
-                          <div className="font-medium">{l.name} <span className="font-normal text-slate-400">· {l.company ?? "—"}</span></div>
-                          <div className="text-xs text-slate-500">
-                            {l.next_action ?? "No action set"} · {dateShort(l.next_action_date)} · {l.email ?? "no email"}
+                    {items.map((l) => {
+                      const notes = notesByLead.get(l.id) ?? [];
+                      return (
+                        <div key={l.id} className="py-2">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="font-medium">
+                                {l.name}{" "}
+                                <span className="font-normal text-slate-400">
+                                  · {l.company ?? "—"}
+                                </span>
+                              </div>
+                              <div className="text-xs text-slate-500">
+                                {l.next_action ?? "No action set"} ·{" "}
+                                {dateShort(l.next_action_date)} · {l.email ?? "no email"}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold">
+                                {currency(l.estimated_value)}
+                              </span>
+                              <form
+                                action={updateLeadStage}
+                                className="flex items-center gap-1"
+                              >
+                                <input type="hidden" name="id" value={l.id} />
+                                <select
+                                  name="stage"
+                                  defaultValue={l.stage}
+                                  className="select !py-1 text-xs"
+                                >
+                                  {STAGES.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button className="text-xs text-brand-600 hover:underline">
+                                  Move
+                                </button>
+                              </form>
+                              <form action={deleteLead}>
+                                <input type="hidden" name="id" value={l.id} />
+                                <button className="text-xs text-rose-600 hover:underline">
+                                  Delete
+                                </button>
+                              </form>
+                            </div>
                           </div>
+                          <details className="group mt-1">
+                            <summary className="cursor-pointer text-[11px] text-slate-500 hover:text-brand-600">
+                              <span className="inline-block w-3 transition-transform group-open:rotate-90">
+                                ▶
+                              </span>{" "}
+                              Notes ({notes.length})
+                            </summary>
+                            <LeadNotesPanel leadId={l.id} notes={notes} />
+                          </details>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold">{currency(l.estimated_value)}</span>
-                          <form action={updateLeadStage} className="flex items-center gap-1">
-                            <input type="hidden" name="id" value={l.id} />
-                            <select name="stage" defaultValue={l.stage} className="select !py-1 text-xs">
-                              {STAGES.map((opt) => (
-                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                              ))}
-                            </select>
-                            <button className="text-xs text-brand-600 hover:underline">Move</button>
-                          </form>
-                          <form action={deleteLead}>
-                            <input type="hidden" name="id" value={l.id} />
-                            <button className="text-xs text-rose-600 hover:underline">Delete</button>
-                          </form>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -177,6 +222,102 @@ export default function LeadsPage() {
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+function LeadNotesPanel({
+  leadId,
+  notes,
+}: {
+  leadId: number;
+  notes: LeadNote[];
+}) {
+  return (
+    <div className="mt-2 rounded-md bg-slate-50/70 p-3">
+      <form action={addLeadNote} className="flex items-start gap-2">
+        <input type="hidden" name="lead_id" value={leadId} />
+        <textarea
+          name="body"
+          rows={2}
+          className="textarea flex-1 text-xs"
+          placeholder="Add a note (e.g. 'Spoke with Dan, sending revised SOW Mon')"
+          required
+        />
+        <button type="submit" className="btn-primary !py-1 text-xs">
+          Add note
+        </button>
+      </form>
+
+      {notes.length === 0 ? (
+        <p className="mt-3 text-[11px] text-slate-500">No notes yet.</p>
+      ) : (
+        <ul className="mt-3 space-y-2">
+          {notes.map((n) => {
+            const edited = n.updated_at && n.updated_at !== n.created_at;
+            return (
+              <li key={n.id} className="rounded border border-slate-200 bg-white p-2">
+                <details className="group">
+                  <summary className="flex cursor-pointer items-start justify-between gap-2 list-none">
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase tracking-wide text-slate-400">
+                        <span title={n.created_at}>{dateTimeShort(n.created_at)}</span>
+                        {edited ? (
+                          <span
+                            className="ml-2 text-amber-600"
+                            title={`Edited ${dateTimeShort(n.updated_at)}`}
+                          >
+                            · edited {dateTimeShort(n.updated_at)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 whitespace-pre-wrap text-xs text-slate-700">
+                        {n.body}
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-brand-600 group-open:hidden">Edit</span>
+                    <span className="hidden text-[10px] text-slate-500 group-open:inline">
+                      Cancel
+                    </span>
+                  </summary>
+                  <div className="mt-2 flex flex-col gap-2 border-t border-slate-100 pt-2">
+                    <form action={updateLeadNote} className="flex flex-col gap-2">
+                      <input type="hidden" name="id" value={n.id} />
+                      <textarea
+                        name="body"
+                        rows={3}
+                        className="textarea text-xs"
+                        defaultValue={n.body}
+                        required
+                      />
+                      <div className="flex justify-between">
+                        <span className="text-[10px] text-slate-400">
+                          Saving will stamp the edit time.
+                        </span>
+                        <button
+                          type="submit"
+                          className="rounded bg-brand-600 px-2 py-1 text-[11px] text-white hover:bg-brand-700"
+                        >
+                          Save changes
+                        </button>
+                      </div>
+                    </form>
+                    <form action={deleteLeadNote} className="flex justify-end">
+                      <input type="hidden" name="id" value={n.id} />
+                      <button
+                        type="submit"
+                        className="text-[10px] text-rose-600 hover:underline"
+                      >
+                        Delete this note
+                      </button>
+                    </form>
+                  </div>
+                </details>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

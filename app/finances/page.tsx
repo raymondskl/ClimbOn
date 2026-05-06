@@ -7,13 +7,16 @@ import { createTransaction, deleteTransaction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default function FinancesPage() {
-  const totals = txRepo.totals();
-  const monthly = txRepo.monthlyTotals(12);
-  const expenseBreakdown = txRepo.categoryBreakdown("expense");
-  const incomeBreakdown = txRepo.categoryBreakdown("income");
-  const recent = txRepo.list().slice(0, 25);
-  const projects = projectRepo.listBrief();
+export default async function FinancesPage() {
+  const [totals, monthly, expenseBreakdown, incomeBreakdown, allTx, projects] = await Promise.all([
+    txRepo.totals(),
+    txRepo.monthlyTotals(12),
+    txRepo.categoryBreakdown("expense"),
+    txRepo.categoryBreakdown("income"),
+    txRepo.list(),
+    projectRepo.listBrief(),
+  ]);
+  const recent = allTx.slice(0, 25);
   const thisMonth = monthly[monthly.length - 1];
   const prevMonth = monthly[monthly.length - 2];
   const mom = prevMonth && prevMonth.net !== 0 ? (thisMonth.net - prevMonth.net) / Math.abs(prevMonth.net) : 0;

@@ -6,19 +6,24 @@ import {
   assignmentRepo,
   employeeRepo,
   projectRepo,
+  quoteRepo,
   skillRepo,
   taskRepo,
 } from "@/lib/repo";
+import { calcTotals } from "@/lib/quoteCalc";
 import { currency, dateShort, todayIso } from "@/lib/format";
-import type { TaskStatus } from "@/lib/types";
+import type { QuoteStatus, TaskStatus } from "@/lib/types";
 import {
   createTask,
   deleteTask,
   removeAssignment,
   updateTaskStatus,
 } from "../actions";
+import { startQuote } from "./quotes/actions";
 import { ScheduleForm } from "./ScheduleForm";
 import { ProjectScheduleBoard } from "./ProjectScheduleBoard";
+import { EditProjectForm } from "./EditProjectForm";
+import { ProjectStatusSelect } from "../ProjectStatusSelect";
 
 export const dynamic = "force-dynamic";
 
@@ -44,33 +49,73 @@ function toneForTask(status: TaskStatus) {
   return TASK_STATUSES.find((s) => s.value === status)?.tone ?? "bg-slate-100 text-slate-700";
 }
 
-export default function ProjectDetailPage({ params }: { params: { id: string } }) {
+function quoteStatusTone(status: QuoteStatus) {
+  switch (status) {
+    case "sent":
+      return "bg-sky-50 text-sky-700";
+    case "accepted":
+      return "bg-emerald-50 text-emerald-700";
+    case "declined":
+      return "bg-rose-50 text-rose-700";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   if (!id) notFound();
-  const project = projectRepo.get(id);
+  const project = await projectRepo.get(id);
   if (!project) notFound();
 
-  const assignments = assignmentRepo.listForProject(id);
-  const tasks = taskRepo.listForProject(id);
-  const skills = skillRepo.list();
-  const fin = projectRepo.financialsFor(id);
+  const [assignments, tasks, skills, fin, quotes, allEmployees] = await Promise.all([
+    assignmentRepo.listForProject(id),
+    taskRepo.listForProject(id),
+    skillRepo.list(),
+    projectRepo.financialsFor(id),
+    quoteRepo.listForProject(id),
+    employeeRepo.listWithSkills(),
+  ]);
+
+  const quoteItemLists = await Promise.all(quotes.map((q) => quoteRepo.items(q.id)));
+  const quoteSummaries = quotes.map((q, i) => ({
+    quote: q,
+    totals: calcTotals(q, quoteItemLists[i]),
+  }));
+
+  // Pre-resolve task-owner skill data so the JSX render stays sync.
+  const taskOwnerInfo = await Promise.all(
+    tasks.map(async (t) => {
+      if (!t.assigned_employee_id) return { owner: null, skillMatch: null as boolean | null };
+      const [owner, ownerSkills] = await Promise.all([
+        employeeRepo.get(t.assigned_employee_id),
+        employeeRepo.skillsFor(t.assigned_employee_id),
+      ]);
+      const skillMatch =
+        t.required_skill_id && owner
+          ? ownerSkills.some((s) => s.id === t.required_skill_id)
+          : null;
+      return { owner: owner ?? null, skillMatch };
+    }),
+  );
 
   const defaultStart = project.start_date || todayIso();
   const defaultEnd = project.due_date || defaultStart;
 
-  const availableForWindow = assignmentRepo.availableEmployees(defaultStart, defaultEnd);
-  const allActive = employeeRepo.listWithSkills().filter((e) => e.active === 1);
+  const availableForWindow = await assignmentRepo.availableEmployees(defaultStart, defaultEnd);
+  const allActive = allEmployees.filter((e) => e.active === 1);
   const boardWindowStart = scheduleWindowStart(project.start_date);
-  const boardAssignments = allActive.flatMap((e) =>
-    assignmentRepo.listForEmployee(e.id).map((a) => ({
-      id: a.id,
-      project_id: a.project_id,
-      employee_id: a.employee_id,
-      start_date: a.start_date,
-      end_date: a.end_date,
-      project_name: a.project_name,
-    })),
+  const boardAssignmentLists = await Promise.all(
+    allActive.map((e) => assignmentRepo.listForEmployee(e.id)),
   );
+  const boardAssignments = boardAssignmentLists.flat().map((a) => ({
+    id: a.id,
+    project_id: a.project_id,
+    employee_id: a.employee_id,
+    start_date: a.start_date,
+    end_date: a.end_date,
+    project_name: a.project_name,
+  }));
 
   return (
     <div>
@@ -85,10 +130,92 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <StatCard label="Status" value={project.status.replace("_", " ")} />
+        <div className="card">
+          <div className="card-body">
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+              Status
+            </div>
+            <div className="mt-1.5">
+              <ProjectStatusSelect projectId={project.id} status={project.status} size="lg" />
+            </div>
+          </div>
+        </div>
         <StatCard label="Window" value={`${dateShort(project.start_date)} → ${dateShort(project.due_date)}`} />
         <StatCard label="Budget" value={currency(project.budget)} />
         <StatCard label="Net (P/L)" value={currency(fin.net)} />
+      </div>
+
+      <div className="mt-4">
+        <EditProjectForm project={project} />
+      </div>
+
+      <div className="card mt-6">
+        <div className="card-body">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-700">Quotes</h2>
+              <p className="text-xs text-slate-500">
+                Build an online quote for this project. The line items are seeded from the T&amp;DA template — edit, override rates, and the totals recalculate live.
+              </p>
+            </div>
+            <form action={startQuote} className="flex items-end gap-2">
+              <input type="hidden" name="project_id" value={id} />
+              <input
+                type="text"
+                name="client_product"
+                placeholder="Client / product"
+                className="input !w-44 !py-1 text-xs"
+                defaultValue={project.client ?? ""}
+              />
+              <button type="submit" className="btn-primary !py-1 text-xs">
+                Start a quote
+              </button>
+            </form>
+          </div>
+          {quoteSummaries.length > 0 ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Version</th>
+                    <th>Client / Product</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th className="text-right">Total</th>
+                    <th className="text-right">Profit</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {quoteSummaries.map(({ quote: q, totals }) => (
+                    <tr key={q.id}>
+                      <td className="font-medium">v{q.version}</td>
+                      <td className="text-slate-600">{q.client_product ?? "—"}</td>
+                      <td className="whitespace-nowrap text-slate-500">{dateShort(q.quote_date)}</td>
+                      <td>
+                        <span className={`badge ${quoteStatusTone(q.status)}`}>{q.status}</span>
+                      </td>
+                      <td className="text-right tabular-nums">{currency(totals.total)}</td>
+                      <td className={`text-right tabular-nums ${totals.profit >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                        {currency(totals.profit)}
+                      </td>
+                      <td className="text-right">
+                        <Link
+                          href={`/projects/${id}/quotes/${q.id}`}
+                          className="text-xs text-brand-600 hover:underline"
+                        >
+                          Open →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-slate-500">No quotes yet.</p>
+          )}
+        </div>
       </div>
 
       <div className="card mt-6">
@@ -251,15 +378,8 @@ export default function ProjectDetailPage({ params }: { params: { id: string } }
                     </tr>
                   </thead>
                   <tbody>
-                    {tasks.map((t) => {
-                      const owner = t.assigned_employee_id
-                        ? employeeRepo.get(t.assigned_employee_id)
-                        : null;
-                      const ownerSkills = owner ? employeeRepo.skillsFor(owner.id) : [];
-                      const skillMatch =
-                        t.required_skill_id && owner
-                          ? ownerSkills.some((s) => s.id === t.required_skill_id)
-                          : null;
+                    {tasks.map((t, idx) => {
+                      const { skillMatch } = taskOwnerInfo[idx];
                       return (
                         <tr key={t.id}>
                           <td className="font-medium">

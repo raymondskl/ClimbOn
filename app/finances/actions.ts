@@ -12,7 +12,7 @@ export async function createTransaction(formData: FormData) {
   const projectRaw = String(formData.get("project_id") ?? "");
   const project_id = projectRaw ? Number(projectRaw) : null;
   if (!occurred_on || !Number.isFinite(amount) || amount <= 0) return;
-  txRepo.create({ type, occurred_on, category, amount, description, project_id });
+  await txRepo.create({ type, occurred_on, category, amount, description, project_id });
   revalidatePath("/finances");
   revalidatePath("/");
   revalidatePath("/projects");
@@ -21,7 +21,7 @@ export async function createTransaction(formData: FormData) {
 export async function deleteTransaction(formData: FormData) {
   const id = Number(formData.get("id"));
   if (!id) return;
-  txRepo.delete(id);
+  await txRepo.delete(id);
   revalidatePath("/finances");
   revalidatePath("/");
 }

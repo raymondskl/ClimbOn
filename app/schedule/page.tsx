@@ -20,20 +20,25 @@ function windowStartIso() {
   return d.toISOString().slice(0, 10);
 }
 
-export default function SchedulePage() {
-  const projects = projectRepo.list().filter((p) => p.status !== "cancelled" && p.status !== "completed");
-  const employeesWithSkills = employeeRepo.listWithSkills().filter((e) => e.active === 1);
+export default async function SchedulePage() {
+  const [allProjects, allEmployees] = await Promise.all([
+    projectRepo.list(),
+    employeeRepo.listWithSkills(),
+  ]);
+  const projects = allProjects.filter((p) => p.status !== "cancelled" && p.status !== "completed");
+  const employeesWithSkills = allEmployees.filter((e) => e.active === 1);
   const windowStart = windowStartIso();
 
-  const assignments = projects.flatMap((p) =>
-    assignmentRepo.listForProject(p.id).map((a) => ({
-      id: a.id,
-      project_id: a.project_id,
-      employee_id: a.employee_id,
-      start_date: a.start_date,
-      end_date: a.end_date,
-    })),
+  const projectAssignments = await Promise.all(
+    projects.map((p) => assignmentRepo.listForProject(p.id)),
   );
+  const assignments = projectAssignments.flat().map((a) => ({
+    id: a.id,
+    project_id: a.project_id,
+    employee_id: a.employee_id,
+    start_date: a.start_date,
+    end_date: a.end_date,
+  }));
 
   return (
     <div>

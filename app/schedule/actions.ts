@@ -15,7 +15,7 @@ export async function moveAssignmentAction(input: {
   if (!input.id || !input.start_date || !input.end_date) {
     return { ok: false, error: "Missing fields." };
   }
-  const result = assignmentRepo.updateDates(input.id, input.start_date, input.end_date);
+  const result = await assignmentRepo.updateDates(input.id, input.start_date, input.end_date);
   if (!result.ok) return { ok: false, error: result.error };
   revalidatePath("/schedule");
   revalidatePath("/employees");
@@ -31,7 +31,7 @@ export async function createAssignmentFromDrag(input: {
   if (!input.project_id || !input.employee_id || !input.start_date || !input.end_date) {
     return { ok: false, error: "Missing fields." };
   }
-  const result = assignmentRepo.create({
+  const result = await assignmentRepo.create({
     project_id: input.project_id,
     employee_id: input.employee_id,
     start_date: input.start_date,
@@ -46,7 +46,7 @@ export async function createAssignmentFromDrag(input: {
 
 export async function deleteAssignmentAction(id: number): Promise<MutationResult> {
   if (!id) return { ok: false, error: "Missing id." };
-  assignmentRepo.delete(id);
+  await assignmentRepo.delete(id);
   revalidatePath("/schedule");
   revalidatePath("/employees");
   return { ok: true };

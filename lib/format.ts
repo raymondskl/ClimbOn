@@ -19,6 +19,21 @@ export function dateShort(iso: string | null | undefined): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+export function dateTimeShort(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  // SQLite returns "YYYY-MM-DD HH:MM:SS" without TZ — treat as UTC.
+  const normalized = iso.includes("T") ? iso : iso.replace(" ", "T") + "Z";
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function monthKey(iso: string): string {
   return iso.slice(0, 7);
 }

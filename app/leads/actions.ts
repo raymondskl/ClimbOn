@@ -7,7 +7,7 @@ import type { LeadStage } from "@/lib/types";
 export async function createLead(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
-  leadRepo.create({
+  await leadRepo.create({
     name,
     company: String(formData.get("company") ?? "").trim() || null,
     email: String(formData.get("email") ?? "").trim() || null,
@@ -27,7 +27,7 @@ export async function updateLeadStage(formData: FormData) {
   const id = Number(formData.get("id"));
   const stage = String(formData.get("stage") ?? "") as LeadStage;
   if (!id || !stage) return;
-  leadRepo.updateStage(id, stage);
+  await leadRepo.updateStage(id, stage);
   revalidatePath("/leads");
   revalidatePath("/");
 }
@@ -35,7 +35,30 @@ export async function updateLeadStage(formData: FormData) {
 export async function deleteLead(formData: FormData) {
   const id = Number(formData.get("id"));
   if (!id) return;
-  leadRepo.delete(id);
+  await leadRepo.delete(id);
   revalidatePath("/leads");
   revalidatePath("/");
+}
+
+export async function addLeadNote(formData: FormData) {
+  const lead_id = Number(formData.get("lead_id"));
+  const body = String(formData.get("body") ?? "").trim();
+  if (!lead_id || !body) return;
+  await leadRepo.addNote(lead_id, body);
+  revalidatePath("/leads");
+}
+
+export async function updateLeadNote(formData: FormData) {
+  const id = Number(formData.get("id"));
+  const body = String(formData.get("body") ?? "").trim();
+  if (!id || !body) return;
+  await leadRepo.updateNote(id, body);
+  revalidatePath("/leads");
+}
+
+export async function deleteLeadNote(formData: FormData) {
+  const id = Number(formData.get("id"));
+  if (!id) return;
+  await leadRepo.deleteNote(id);
+  revalidatePath("/leads");
 }

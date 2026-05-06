@@ -42,6 +42,14 @@ export interface Lead {
   created_at: string;
 }
 
+export interface LeadNote {
+  id: number;
+  lead_id: number;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export type EmploymentType = "full_time" | "part_time" | "contractor";
 
 export interface Employee {
@@ -102,6 +110,123 @@ export interface ProjectTaskDetail extends ProjectTask {
   required_skill_name: string | null;
   assigned_employee_name: string | null;
 }
+
+export type QuoteStatus = "draft" | "sent" | "accepted" | "declined";
+
+export interface Quote {
+  id: number;
+  project_id: number;
+  version: number;
+  quote_date: string | null;
+  client_product: string | null;
+  primary_contact: string | null;
+  producer: string | null;
+  producer_title: string | null;
+  director: string | null;
+  agency: string | null;
+  agency_contact: string | null;
+  production_company: string | null;
+  prod_company_producer: string | null;
+  tda_location: string | null;
+  discount_rate: number;
+  overhead_rate: number;
+  cover_letter_intro: string | null;
+  cover_letter_exclusions: string | null;
+  licence_territory: string | null;
+  licence_term: string | null;
+  licence_use: string | null;
+  status: QuoteStatus;
+  created_at: string;
+}
+
+export interface QuoteItem {
+  id: number;
+  quote_id: number;
+  sort_order: number;
+  class: string;
+  units: number;
+  unit: string;
+  resource_rate: number;
+  overhead_rate: number;
+  room_rate: number;
+  quoted_rate_override: number | null;
+  notes: string | null;
+}
+
+export type ShotDiscipline =
+  | "design_mogfx"
+  | "concept_art"
+  | "anim_2d"
+  | "dmp"
+  | "dev"
+  | "previz"
+  | "layout"
+  | "mod"
+  | "rig"
+  | "face_swap"
+  | "anim"
+  | "tex_shad"
+  | "fx_td"
+  | "lookdev"
+  | "l_r"
+  | "roto_track"
+  | "lead_nuke"
+  | "nuke"
+  | "online"
+  | "sound";
+
+export interface QuoteShot {
+  id: number;
+  quote_id: number;
+  sort_order: number;
+  shot_code: string | null;
+  board_ref: string | null;
+  production_notes: string | null;
+  vfx_notes: string | null;
+  design_mogfx: number;
+  concept_art: number;
+  anim_2d: number;
+  dmp: number;
+  dev: number;
+  previz: number;
+  layout: number;
+  mod: number;
+  rig: number;
+  face_swap: number;
+  anim: number;
+  tex_shad: number;
+  fx_td: number;
+  lookdev: number;
+  l_r: number;
+  roto_track: number;
+  lead_nuke: number;
+  nuke: number;
+  online: number;
+  sound: number;
+}
+
+export const SHOT_DISCIPLINES: { key: ShotDiscipline; label: string; lineClass: string }[] = [
+  { key: "design_mogfx", label: "Design / Mo Gfx", lineClass: "DESIGN / MO GFX" },
+  { key: "concept_art", label: "Concept Art", lineClass: "CONCEPT ART" },
+  { key: "anim_2d", label: "2D Anim", lineClass: "2D ANIMATION" },
+  { key: "dmp", label: "DMP", lineClass: "DMP" },
+  { key: "dev", label: "Dev", lineClass: "DEV" },
+  { key: "previz", label: "Previz", lineClass: "PREVIZ" },
+  { key: "layout", label: "Layout", lineClass: "LAYOUT" },
+  { key: "mod", label: "Mod", lineClass: "3D MODELLING" },
+  { key: "rig", label: "Rig", lineClass: "RIG" },
+  { key: "face_swap", label: "Face Swap", lineClass: "FACE SWAP" },
+  { key: "anim", label: "Anim", lineClass: "ANIMATION" },
+  { key: "tex_shad", label: "Tex / Shad", lineClass: "TEXTURE / SHADING" },
+  { key: "fx_td", label: "FX TD", lineClass: "FX TD" },
+  { key: "lookdev", label: "Lookdev", lineClass: "LOOKDEV" },
+  { key: "l_r", label: "L&R", lineClass: "LIGHTING / RENDER" },
+  { key: "roto_track", label: "Roto / Track", lineClass: "ROTOSCOPE" },
+  { key: "lead_nuke", label: "Lead Nuke", lineClass: "LEAD NUKE COMP" },
+  { key: "nuke", label: "Nuke", lineClass: "NUKE COMP" },
+  { key: "online", label: "Online", lineClass: "ONLINE EDITING" },
+  { key: "sound", label: "Sound", lineClass: "SOUND" },
+];
 
 export interface Dataset {
   id: number;

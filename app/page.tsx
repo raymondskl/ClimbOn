@@ -8,15 +8,18 @@ import { growthRate } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
 
-export default function DashboardPage() {
-  const totals = txRepo.totals();
-  const monthly = txRepo.monthlyTotals(12);
-  const projects = projectRepo.list();
+export default async function DashboardPage() {
+  const [totals, monthly, projects, leads, employees] = await Promise.all([
+    txRepo.totals(),
+    txRepo.monthlyTotals(12),
+    projectRepo.list(),
+    leadRepo.list(),
+    employeeRepo.list(),
+  ]);
   const activeProjects = projects.filter((p) => p.status === "active");
-  const leads = leadRepo.list();
   const openLeads = leads.filter((l) => !["won", "lost"].includes(l.stage));
   const pipelineValue = openLeads.reduce((s, l) => s + l.estimated_value, 0);
-  const activeHeadcount = employeeRepo.list().filter((e) => e.active === 1).length;
+  const activeHeadcount = employees.filter((e) => e.active === 1).length;
   const netTrend = growthRate(monthly.map((m) => m.net));
   const incomeTrend = growthRate(monthly.map((m) => m.income));
 

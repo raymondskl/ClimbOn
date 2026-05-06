@@ -12,7 +12,7 @@ import type { ProjectStatus, TaskStatus } from "@/lib/types";
 export async function createProject(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
-  projectRepo.create({
+  await projectRepo.create({
     name,
     client: String(formData.get("client") ?? "").trim() || null,
     status: (String(formData.get("status") ?? "planned") as ProjectStatus),
@@ -25,11 +25,30 @@ export async function createProject(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function updateProject(formData: FormData) {
+  const id = Number(formData.get("id"));
+  if (!id) return;
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return;
+  await projectRepo.update(id, {
+    name,
+    client: String(formData.get("client") ?? "").trim() || null,
+    status: (String(formData.get("status") ?? "planned") as ProjectStatus),
+    budget: Number(formData.get("budget") ?? 0) || 0,
+    start_date: String(formData.get("start_date") ?? "") || null,
+    due_date: String(formData.get("due_date") ?? "") || null,
+    notes: String(formData.get("notes") ?? "").trim() || null,
+  });
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${id}`);
+  revalidatePath("/");
+}
+
 export async function updateProjectStatus(formData: FormData) {
   const id = Number(formData.get("id"));
   const status = String(formData.get("status") ?? "") as ProjectStatus;
   if (!id || !status) return;
-  projectRepo.update(id, { status });
+  await projectRepo.update(id, { status });
   revalidatePath("/projects");
   revalidatePath(`/projects/${id}`);
   revalidatePath("/");
@@ -38,7 +57,7 @@ export async function updateProjectStatus(formData: FormData) {
 export async function deleteProject(formData: FormData) {
   const id = Number(formData.get("id"));
   if (!id) return;
-  projectRepo.delete(id);
+  await projectRepo.delete(id);
   revalidatePath("/projects");
   revalidatePath("/");
 }
@@ -62,7 +81,7 @@ export async function scheduleEmployee(
     return { ok: false, error: "All fields marked required are needed." };
   }
 
-  const result = assignmentRepo.create({
+  const result = await assignmentRepo.create({
     project_id,
     employee_id,
     start_date,
@@ -92,7 +111,7 @@ export async function removeAssignment(formData: FormData) {
   const id = Number(formData.get("id"));
   const project_id = Number(formData.get("project_id"));
   if (!id) return;
-  assignmentRepo.delete(id);
+  await assignmentRepo.delete(id);
   revalidatePath(`/projects/${project_id}`);
   revalidatePath("/employees");
 }
@@ -103,12 +122,12 @@ export async function createTask(formData: FormData) {
   if (!project_id || !description) return;
 
   const skillName = String(formData.get("skill_name") ?? "").trim();
-  const skill = skillName ? skillRepo.findOrCreate(skillName) : null;
+  const skill = skillName ? await skillRepo.findOrCreate(skillName) : null;
 
   const assignedRaw = String(formData.get("assigned_employee_id") ?? "");
   const assigned_employee_id = assignedRaw ? Number(assignedRaw) : null;
 
-  taskRepo.create({
+  await taskRepo.create({
     project_id,
     description,
     required_skill_id: skill?.id ?? null,
@@ -124,7 +143,7 @@ export async function updateTaskStatus(formData: FormData) {
   const project_id = Number(formData.get("project_id"));
   const status = String(formData.get("status") ?? "") as TaskStatus;
   if (!id || !status) return;
-  taskRepo.updateStatus(id, status);
+  await taskRepo.updateStatus(id, status);
   revalidatePath(`/projects/${project_id}`);
 }
 
@@ -132,6 +151,6 @@ export async function deleteTask(formData: FormData) {
   const id = Number(formData.get("id"));
   const project_id = Number(formData.get("project_id"));
   if (!id) return;
-  taskRepo.delete(id);
+  await taskRepo.delete(id);
   revalidatePath(`/projects/${project_id}`);
 }
