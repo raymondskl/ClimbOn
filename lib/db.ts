@@ -1,7 +1,8 @@
 import { createClient, type Client, type InStatement } from "@libsql/client";
+import path from "path";
 
 // libSQL URL: prod = `libsql://...turso.io` with auth token, dev = local file URL.
-const URL = process.env.TURSO_DATABASE_URL ?? "file:./data/climbon.db";
+const URL = process.env.TURSO_DATABASE_URL ?? `file:${path.join(process.cwd(), "data", "climbon.db")}`;
 const AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN;
 
 let _client: Client | null = null;

@@ -202,9 +202,6 @@ export default async function LeadsPage() {
                           </div>
                           <details className="group mt-1">
                             <summary className="cursor-pointer text-[11px] text-slate-500 hover:text-brand-600">
-                              <span className="inline-block w-3 transition-transform group-open:rotate-90">
-                                ▶
-                              </span>{" "}
                               Notes ({notes.length})
                             </summary>
                             <LeadNotesPanel leadId={l.id} notes={notes} />

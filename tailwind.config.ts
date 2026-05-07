@@ -6,13 +6,19 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          50: "#f0f9ff",
-          100: "#e0f2fe",
-          500: "#0ea5e9",
-          600: "#0284c7",
-          700: "#0369a1",
-          900: "#0c4a6e",
+          50:  "#FFFBEB",
+          100: "#FEF3C7",
+          200: "#FDE68A",
+          500: "#F59E0B",
+          600: "#D97706",
+          700: "#B45309",
+          900: "#78350F",
         },
+      },
+      fontFamily: {
+        display: ["var(--font-syne)", "sans-serif"],
+        mono:    ["var(--font-dm-mono)", "monospace"],
+        sans:    ["var(--font-outfit)", "sans-serif"],
       },
     },
   },
